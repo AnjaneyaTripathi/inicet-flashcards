@@ -671,7 +671,16 @@ window.INICET_DATA = {"version":1,"fingerprint":"216965d21a184550975adf518c35437
   function setTheme(){const theme=state.prefs.theme;if(theme==='system')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=theme;const dark=theme==='dark'||(theme==='system'&&systemTheme.matches);for(const meta of document.querySelectorAll('meta[name="theme-color"]'))meta.content=dark?'#24251e':'#f5cf4b';$('theme').title=`Theme: ${theme}. Click to change.`;$('theme').setAttribute('aria-label',`Theme: ${theme}. Change color theme`);}
   systemTheme.addEventListener('change',setTheme);
   function syncControls(){const p=state.prefs;$('subject').value=p.subject;$('search').value=p.query;$('mode').value=p.mode;for(const [id,key] of [['tShuffle','shuffle'],['tHide','hideKnown'],['tHy','hy']])$(id).setAttribute('aria-pressed',String(p[key]));setTheme();}
-  for(const s of D.subjects){const option=el('option',`${s.name} · ${s.cardCount}`);option.value=s.id;$('subject').append(option);}
+  for(const s of D.subjects){const option=el('option',s.name);option.value=s.id;$('subject').append(option);}
+  function subjectCounts(){
+    // Choosing a subject resets its section, so count each subject across all sections.
+    const prefs={...state.prefs,subject:'all',section:'all'},counts=new Map(),now=Date.now();let total=0;
+    for(const c of D.cards)if(C.matches(c,prefs,state.progress,now)){counts.set(c.subject,(counts.get(c.subject)||0)+1);total++;}
+    for(const option of $('subject').options){
+      const all=option.value==='all',name=all?'All subjects':subjectMap.get(option.value).name;
+      option.textContent=`${name} · ${all?total:counts.get(option.value)||0}`;
+    }
+  }
   function scopeCards(){return D.cards.filter(c=>state.prefs.subject==='all'||c.subject===state.prefs.subject);}
   function chips(){
     const subject=subjectMap.get(state.prefs.subject);const sections=subject?subject.sections:[];
@@ -684,6 +693,7 @@ window.INICET_DATA = {"version":1,"fingerprint":"216965d21a184550975adf518c35437
     }
   }
   function stats(){
+    subjectCounts();
     const cards=scopeCards();let known=0,review=0,due=0;const now=Date.now();
     for(const c of cards){const e=progress(c.id);if(e.status==='known')known++;if(e.status==='review')review++;if(e.status!=='new'&&e.due<=now)due++;}
     $('nk').textContent=known;$('nr').textContent=review;$('nn').textContent=cards.length-known-review;$('nd').textContent=due;
